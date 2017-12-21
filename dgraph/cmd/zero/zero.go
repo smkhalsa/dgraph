@@ -348,54 +348,30 @@ func (s *Server) Connect(ctx context.Context,
 
 	createProposal := func() *intern.ZeroProposal {
 		s.Lock()
-		defer s.Unlock()
+		fmt.Println("locked inside createProposal")
+		defer func() {
+			fmt.Println("about to unlock inside createProposal")
+			s.Unlock()
+		}()
 
-		proposal := new(intern.ZeroProposal)
 		// Check if we already have this member.
 		for _, group := range s.state.Groups {
 			if _, has := group.Members[m.Id]; has {
+				fmt.Println("already has group")
 				return nil
 			}
 		}
+		proposal := new(intern.ZeroProposal)
 		if m.Id == 0 {
 			m.Id = s.state.MaxRaftId + 1
 			proposal.MaxRaftId = m.Id
 		}
 
-		// We don't have this member. So, let's see if it has preference for a group.
-		if m.GroupId > 0 {
-			group, has := s.state.Groups[m.GroupId]
-			if !has {
-				// We don't have this group. Add the server to this group.
-				proposal.Member = m
-				return proposal
-			}
-
-			if _, has := group.Members[m.Id]; has {
-				proposal.Member = m // Update in case some fields have changed, like address.
-				return proposal
-			}
-
-			// We don't have this server in the list.
-			if len(group.Members) < s.NumReplicas {
-				// We need more servers here, so let's add it.
-				proposal.Member = m
-				return proposal
-			}
-			// Already have plenty of servers serving this group.
-		}
-		// Let's assign this server to a new group.
-		for gid, group := range s.state.Groups {
-			if len(group.Members) < s.NumReplicas {
-				m.GroupId = gid
-				proposal.Member = m
-				return proposal
-			}
-		}
-		// We either don't have any groups, or don't have any groups which need another member.
-		m.GroupId = s.nextGroup
-		s.nextGroup++
 		proposal.Member = m
+		if m.GroupId == 0 {
+			// The actual group is chosen when the proposal is applied.
+			proposal.Member.GroupId = math.MaxUint32
+		}
 		return proposal
 	}
 
@@ -410,6 +386,7 @@ func (s *Server) Connect(ctx context.Context,
 		Member: m,
 	}
 	return resp, nil
+
 }
 
 func (s *Server) ShouldServe(

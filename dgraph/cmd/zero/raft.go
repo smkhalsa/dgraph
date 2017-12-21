@@ -20,6 +20,8 @@ package zero
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -249,6 +251,8 @@ func (n *node) applyProposal(e raftpb.Entry) (uint32, error) {
 	n.server.Lock()
 	defer n.server.Unlock()
 
+	fmt.Printf("applyProposal %+v\n", p)
+
 	state := n.server.state
 	state.Counter = e.Index
 	if p.MaxRaftId > 0 {
@@ -276,6 +280,11 @@ func (n *node) applyProposal(e raftpb.Entry) (uint32, error) {
 			}
 			return p.Id, nil
 		}
+
+		// -- BEGIN choose group
+		p.Member.GroupId = resolveGroupId(p.Member, n.server)
+		// -- END choose group
+
 		group := state.Groups[p.Member.GroupId]
 		if group == nil {
 			group = newGroup()
@@ -361,6 +370,38 @@ func (n *node) applyProposal(e raftpb.Entry) (uint32, error) {
 	}
 
 	return p.Id, nil
+}
+
+func resolveGroupId(proposed *intern.Member, server *Server) uint32 {
+	// TODO: Assert lock is held?
+
+	if proposed.GroupId != math.MaxUint32 {
+		group, has := server.state.Groups[proposed.GroupId]
+		if !has {
+			// We don't have this group, Add the server to this group.
+			return proposed.GroupId
+		}
+		if _, has := group.Members[proposed.Id]; has {
+			// Already a member of the group.
+			return proposed.GroupId
+		}
+		if len(group.Members) < server.NumReplicas {
+			// Need more servers here, so let's add it.
+		}
+		// Already have the required number of servers serving this group.
+	}
+
+	// Let's assign this server to a new group.
+	for gid, group := range server.state.Groups {
+		if len(group.Members) < server.NumReplicas {
+			return gid
+		}
+	}
+
+	// We either don't have any groups, or don't have any groups which need another member.
+	gid := server.nextGroup
+	server.nextGroup++
+	return gid
 }
 
 func (n *node) applyConfChange(e raftpb.Entry) {
