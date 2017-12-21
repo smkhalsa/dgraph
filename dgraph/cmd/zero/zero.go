@@ -348,16 +348,11 @@ func (s *Server) Connect(ctx context.Context,
 
 	createProposal := func() *intern.ZeroProposal {
 		s.Lock()
-		fmt.Println("locked inside createProposal")
-		defer func() {
-			fmt.Println("about to unlock inside createProposal")
-			s.Unlock()
-		}()
+		defer s.Unlock()
 
 		// Check if we already have this member.
 		for _, group := range s.state.Groups {
 			if _, has := group.Members[m.Id]; has {
-				fmt.Println("already has group")
 				return nil
 			}
 		}

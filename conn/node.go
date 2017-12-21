@@ -411,6 +411,7 @@ func (n *Node) AddToCluster(ctx context.Context, pid uint64) error {
 
 func (n *Node) ProposePeerRemoval(ctx context.Context, id uint64) error {
 	if n.Raft() == nil {
+		fmt.Println("errNoNode 1")
 		return errNoNode
 	}
 	if _, ok := n.Peer(id); !ok && id != n.RaftContext.Id {
@@ -453,6 +454,7 @@ func (w *RaftServer) JoinCluster(ctx context.Context,
 	// TODO: Uncomment this after groups is removed.
 	node := w.GetNode()
 	if node == nil || node.Raft() == nil {
+		fmt.Println("errNoNode 2")
 		return nil, errNoNode
 	}
 	// Check that the new node is from the same group as me.
@@ -494,9 +496,11 @@ func (w *RaftServer) applyMessage(ctx context.Context, msg raftpb.Message) error
 
 	node := w.GetNode()
 	if node == nil || node.Raft() == nil {
+		fmt.Println("errNoNode 3")
 		return errNoNode
 	}
 	if rc.Group != node.RaftContext.Group {
+		fmt.Println("errNoNode 4")
 		return errNoNode
 	}
 	node.Connect(msg.From, rc.Addr)
