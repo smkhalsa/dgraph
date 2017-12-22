@@ -68,6 +68,7 @@ func groups() *groupi {
 // This function triggers RAFT nodes to be created, and is the entrace to the RAFT
 // world from main.go.
 func StartRaftNodes(walStore *badger.ManagedDB, bindall bool) {
+	fmt.Println("[StartRaftNodes]")
 	gr = new(groupi)
 	gr.ctx, gr.cancel = context.WithCancel(context.Background())
 
