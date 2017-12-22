@@ -636,12 +636,11 @@ func (n *node) joinPeers() {
 
 	c := intern.NewRaftClient(gconn)
 	x.Printf("Calling JoinCluster")
-	ctx, cancel := context.WithTimeout(n.ctx, time.Second)
+	ctx, cancel := context.WithTimeout(n.ctx, 5*time.Second)
 	defer cancel()
 	// JoinCluster can block idefinitely, raft ignores conf change proposal
 	// if it has pending configuration.
 	_, err := c.JoinCluster(ctx, n.RaftContext)
-	// TODO: This should keep on indefinitely trying to join the cluster, instead of crashing.
 	x.Checkf(err, "Error while joining cluster")
 	x.Printf("Done with JoinCluster call\n")
 }

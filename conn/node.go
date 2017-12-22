@@ -450,13 +450,23 @@ func (w *RaftServer) JoinCluster(ctx context.Context,
 	if ctx.Err() != nil {
 		return &api.Payload{}, ctx.Err()
 	}
-	// Commenting out the following checks for now, until we get rid of groups.
-	// TODO: Uncomment this after groups is removed.
-	node := w.GetNode()
-	if node == nil || node.Raft() == nil {
-		fmt.Println("errNoNode 2")
-		return nil, errNoNode
+
+	var node *Node
+	for {
+		// Commenting out the following checks for now, until we get rid of groups.
+		// TODO: Uncomment this after groups is removed.
+		node = w.GetNode()
+		if node != nil && node.Raft() != nil {
+			break
+		}
+		select {
+		case <-time.After(100 * time.Millisecond):
+			fmt.Println("retry") // TODO: remove bugging
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
+
 	// Check that the new node is from the same group as me.
 	if rc.Group != node.RaftContext.Group {
 		return nil, x.Errorf("Raft group mismatch")
